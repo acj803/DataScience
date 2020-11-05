@@ -9,14 +9,15 @@ library(tidyverse)
 books <- BX_Books %>%
   select(ISBN,`Book-Title`,`Book-Author`,`Year-Of-Publication`,Publisher)
 ```
-
-### Users jetzt
-### Umwandeln in Zahlen 
-### Lasse User älter als 100 oder unter 10 und ohne Alter drin, da die Bewertungen wichtiger sind als das Alter
 ```{r}
-users <- BX_Users %>%
-  mutate(Age = as.numeric(Age))
+booksPublisher <- BX_Books %>%
+  select(ISBN, Publisher)
 ```
+```{r}
+booksYear <-BX_Books %>%
+  select(ISBN, `Year-Of-Publication`)
+```
+
 
 ### Ratings jetzt
 ```{r}
@@ -29,17 +30,7 @@ ratings <- BX_Book_Ratings %>%
 bestRatings <- ratings %>%
   group_by(ISBN) %>%
   summarise(Durchschnittsbewertung = mean(`Book-Rating`), AnzahlBewertungen = n()) %>%
-  filter(AnzahlBewertungen > 5) %>%
-  arrange(desc(Durchschnittsbewertung))
-```
-
-# Lineare Beziehung zwischen Büchern pro Publisher und Bewertungen der Publisher
-## Anzahl der Bücher pro Publisher
-```{r}
-PublisherBooks <- BX_Books %>%
-  select(ISBN, Publisher) %>%
-    group_by(Publisher) %>%
-  summarise(AnzahlBooks = n())
+  filter(AnzahlBewertungen > 5)
 ```
 
 ## Durchschnittsbewertungen der Publisher
@@ -51,10 +42,26 @@ VerlagRatings <- merge(BX_Books, bestRatings) %>%
   arrange(desc(AnzahlBewertungen))
 ```
 
+# Lineare Beziehung zwischen Büchern pro Publisher und Bewertungen der Publisher
+## Anzahl der Bücher pro Publisher
+```{r}
+PublisherBooks <- BX_Books %>%
+  select(ISBN, Publisher) %>%
+    group_by(Publisher) %>%
+  summarise(AnzahlBooks = n())
+```
+
+## Zählen wie oft Publisher mit unterschiedlichen Büchern und Bewertungen in der Liste drin sind
+```{r}
+manyRatings <- merge(BX_Book_Ratings, BX_Books) %>%
+  group_by(Publisher) %>%
+  summarise(AnzahlDerBewertungen = n())
+```
+
 ## Plotbare Liste erstellen
 ```{r}
-LinBez <- merge(PublisherBooks, VerlagRatings) %>%
-  select(AnzahlBooks, AnzahlBewertungen)
+LinBez <- merge(PublisherBooks, manyRatings) %>%
+  select(AnzahlBooks, AnzahlDerBewertungen)
 ```
 
 ## Plotten für Übersichtlichkeit
@@ -62,7 +69,7 @@ LinBez <- merge(PublisherBooks, VerlagRatings) %>%
 plot(LinBez)
 ```
 ```{r}
-scatter.smooth(x=LinBez$AnzahlBooks, y=LinBez$AnzahlBewertungen)
+scatter.smooth(x=LinBez$AnzahlBooks, y=LinBez$AnzahlDerBewertungen)
 ```
 ```{r}
 summary(LinBez)
@@ -71,26 +78,49 @@ summary(LinBez)
 # Haben ältere Bücher mehr Ratings als neue Bücher?
 ## Ab wann ist ein Buch als "alt" anzusehen, 2000, 1950 oder 1900?
 ## Wenn man bei 2000 die Grenze zwischen alt und neu setzt haben "alte" Bücher generell mehr bewertungen, allerdings liegen diese "alten" Bücher generell zwischen 1990 und 2000
+#```{r}
+#oldBooks <- merge(bestRatings, books) %>%
+#  select(Durchschnittsbewertung, ISBN, `Year-Of-Publication`, AnzahlBewertungen) %>%
+#  filter(`Year-Of-Publication` > 0) %>%
+#  filter(Durchschnittsbewertung > 0) %>%
+#  arrange(desc(AnzahlBewertungen))
+#```
+
+### In plottbare Tabelle verwandeln
+#```{r}
+#oldBooksPlot <- oldBooks%>%
+#  select(`Year-Of-Publication`, AnzahlBewertungen)
+#```
+
+### Plotten damits übersichtlicher wird
+#```{r}
+#plot(oldBooksPlot)
+#```
+
+### Anderer Plot, vielleicht klarere Linie erkennbar
+#```{r}
+#scatter.smooth(x=oldBooksPlot$`Year-Of-Publication`, y=oldBooksPlot$AnzahlBewertungen)
+#```
+
+# Diese Art es darzustellen, hat das Defiziet, dass man nicht sehen kann wie viele Bücher wann veröffentlicht wurden
 ```{r}
-oldBooks <- merge(bestRatings, books) %>%
-  select(Durchschnittsbewertung, ISBN, `Year-Of-Publication`, AnzahlBewertungen) %>%
-  filter(`Year-Of-Publication` > 0) %>%
-  filter(Durchschnittsbewertung > 0) %>%
-  arrange(desc(AnzahlBewertungen))
+BooksAge <- merge(BX_Book_Ratings, BX_Books) %>%
+  group_by(`Year-Of-Publication`) %>%
+  summarise(BewertungenJahre = n()) %>%
+  filter(`Year-Of-Publication` > 1800)
+```
+```{r}
+plot(BooksAge)
 ```
 
-## In plottbare Tabelle verwandeln
+## Versuche die Anzahl mit einzubringen
 ```{r}
-oldBooksPlot <- oldBooks%>%
-  select(`Year-Of-Publication`, AnzahlBewertungen)
+BucherAlter <- merge(BX_Book_Ratings, BX_Books) %>%
+  group_by(ISBN) %>%
+  summarise(AnzahlBewertungenAlter = n ())
 ```
-
-## Plotten damits übersichtlicher wird
 ```{r}
-plot(oldBooksPlot)
+BücherYear <- merge(BucherAlter, booksYear) %>%
+  select(`Year-Of-Publication`, AnzahlBewertungenAlter)
 ```
-
-## Anderer Plot, vielleicht klarere Linie erkennbar
-```{r}
-scatter.smooth(x=oldBooksPlot$`Year-Of-Publication`, y=oldBooksPlot$AnzahlBewertungen)
-```
+### Ich glaube ich habe mich auf das selbe wieder hinausgearbeitet, was schon oben steht... xD
