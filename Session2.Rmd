@@ -2,6 +2,17 @@
 library(tidyverse)
 ```
 
+### Neu hinzugefügt (07.11.2020)
+```{r}
+library(readr)
+BX_Book_Ratings <- read_delim("~/1Szudium/Mui/3. Semester/Data Science/BX-Book-Ratings.csv", 
+    ";", escape_double = FALSE, trim_ws = TRUE)
+BX_Books <- read_delim("~/1Szudium/Mui/3. Semester/Data Science/BX-Books.csv", ";", 
+    escape_double = FALSE, trim_ws = TRUE)
+BX_Users <- read_delim("~/1Szudium/Mui/3. Semester/Data Science/BX-Users.csv", ";", 
+    escape_double = FALSE, trim_ws = TRUE)
+```
+
 # Säubern und transformieren der Daten
 ### Zuerst Books aufs nötigste reduzieren
 ```{r}
@@ -16,23 +27,19 @@ booksPublisher <- BX_Books %>%
 booksYear <-BX_Books %>%
   select(ISBN, `Year-Of-Publication`)
 ```
-
-
 ### Ratings jetzt
 ```{r}
 ratings <- BX_Book_Ratings %>%
   left_join(books)
 ```
-
-## Ratings zusammenbauen fürs einfache zusammenzähle der Bewertungen
+### Ratings zusammenbauen fürs einfache zusammenzähle der Bewertungen
 ```{r}
 bestRatings <- ratings %>%
   group_by(ISBN) %>%
   summarise(Durchschnittsbewertung = mean(`Book-Rating`), AnzahlBewertungen = n()) %>%
   filter(AnzahlBewertungen > 5)
 ```
-
-## Durchschnittsbewertungen der Publisher
+### Durchschnittsbewertungen der Publisher
 ```{r}
 VerlagRatings <- merge(BX_Books, bestRatings) %>%
   select(AnzahlBewertungen, Publisher) %>%
@@ -40,6 +47,8 @@ VerlagRatings <- merge(BX_Books, bestRatings) %>%
   summarise(AnzahlBewertungen = n()) %>%
   arrange(desc(AnzahlBewertungen))
 ```
+
+
 
 # Lineare Beziehung zwischen Büchern pro Publisher und Bewertungen der Publisher
 ## Anzahl der Bücher pro Publisher
@@ -49,26 +58,23 @@ PublisherBooks <- BX_Books %>%
     group_by(Publisher) %>%
   summarise(AnzahlBooks = n())
 ```
-
 ## Zählen wie oft Publisher mit unterschiedlichen Büchern und Bewertungen in der Liste drin sind
 ```{r}
 manyRatings <- merge(BX_Book_Ratings, BX_Books) %>%
   group_by(Publisher) %>%
   summarise(AnzahlDerBewertungen = n())
 ```
-
 ## Plotbare Liste erstellen
 ```{r}
 LinBez <- merge(PublisherBooks, manyRatings) %>%
   select(AnzahlBooks, AnzahlDerBewertungen)
 ```
-
 ## Plotten für Übersichtlichkeit
 ```{r}
 plot(LinBez)
 ```
 ```{r}
-scatter.smooth(x=LinBez$AnzahlBooks, y=LinBez$AnzahlDerBewertungen)
+scatter.smooth(y=LinBez$AnzahlBooks, x=LinBez$AnzahlDerBewertungen)
 ```
 ```{r}
 summary(LinBez)
@@ -105,7 +111,7 @@ summary(LinBez)
 ```{r}
 BooksAge <- merge(BX_Book_Ratings, BX_Books) %>%
   group_by(`Year-Of-Publication`) %>%
-  summarise(BewertungenJahre = n()) %>%
+  summarise(BewertungenImJahre = n()) %>%
   filter(`Year-Of-Publication` > 1800)
 ```
 ```{r}
