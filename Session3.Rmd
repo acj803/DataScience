@@ -22,8 +22,8 @@ BX_Users <- read_delim("~/1Szudium/Mui/3. Semester/Data Science/BX-Users.csv", "
     escape_double = FALSE, trim_ws = TRUE)
 ```
 
-##Bereinigen von den Büchern
-##Entfernen der ursprungsdateien
+## Bereinigen von den Büchern
+## Entfernen der ursprungsdateien
 ```{r}
 books <- BX_Books %>%
   select(ISBN, `Book-Title`, `Book-Author`, `Year-Of-Publication`, Publisher)
@@ -47,21 +47,15 @@ all <- ratings %>%
 write_csv(all, "all.csv")
 ```
 
-##Filter die Bücher raus, die als nicht sonderlich gut bewertet wurden
-```{r}
-all <- read_csv("all.csv") %>%
-  filter(`Book-Rating` > 6)
-```
+    # Aufgabe
+    # Erstellen Sie eine Analyse, bei der nicht die Bücher, sondern die Autoren in den Transaktionen enthalten sind
 
-##Austauschen von Buchtiteln durch Autoren
+## Austauschen von Buchtiteln durch Autoren
 ```{r message=FALSE}
 i <- split(all$`Book-Author`,all$`User-ID`)
 txn <- as(i, "transactions")
 basket_rules <- apriori(txn, parameter = list(sup = 0.001, conf = 0.0001, minlen=2, target="rules"))
 ```
-### Auf einmal gibt es viele kleine Verbindugen und einen massiven "Blob", dieser ist kaum bis gar nicht auseinander zu bekommen.
-### Mit einem höheren Support konnte der Haufen etwas gelockert werden
-
 
 ```{r}
 myRules_Direct <- as(basket_rules, "data.frame")
@@ -69,6 +63,7 @@ basket_rules_hi <- head(basket_rules, by ="lift",100)
 head(myRules_Direct, 20)
 ```
 
+## Visualisierungen
 ```{r}
 plot(basket_rules_hi, method="graph", main="Books")
 ```
@@ -77,5 +72,46 @@ plot(basket_rules_hi, method="graph", main="Books")
 plot(basket_rules_hi, method="graph", main="Books", engine="interactive")
 ```
 
-## Genrelles optimieren; Wenn schon eine Verbindung da ist, sollte die Rückwärtige verbindung mit eingerechnet werden
+    # Aufgabe
+    # Fällt Ihnen etwas in der Datenqualität auf?
+
+### Auf einmal gibt es viele kleine Verbindugen und einen massiven "Blob", dieser ist kaum bis gar nicht auseinander zu bekommen.
+### Mit einem höheren Support konnte der Haufen etwas gelockert werden
+
+    # Aufgabe
+    # Wie könnte man das mit regulären Ausdrücken beheben?
+    
 ## Falls Autorennamen unterschiedlich geschrieben werden tauchen sie mehrfach auf, das sollte gefiltert werden
+```{r}
+all <- all %>%
+  mutate(`Book-Author`= ifelse(grepl("[A-Z]{2}", `Book-Author`), str_to_title(`Book-Author`),`Book-Author`)) 
+```
+
+    # Wie kann man nun noch sicherstellen, dass nur die Autoren weiterempfohlen werden, deren Bücher man auch (mehrheitlich) gut fand?
+    
+## Filter die Bücher raus, die als nicht sonderlich gut bewertet wurden
+```{r}
+allgood <- all %>%
+  filter(`Book-Rating` > 4)
+```
+
+```{r message=FALSE}
+i <- split(allgood$`Book-Author`,allgood$`User-ID`)
+txn <- as(i, "transactions")
+basket_rules <- apriori(txn, parameter = list(sup = 0.001, conf = 0.0001, minlen=2, target="rules"))
+basket_rules_hi <- head(basket_rules, by ="lift",100)
+plot(basket_rules_hi, method="graph", main="Books")
+```
+
+
+    # Welche anderen Features wären sinnvoll?
+    
+## Bücher nach dem Herausgebungsdatum trennen um aktueller zu sein
+```{r}
+all %>%
+  filter(`Year-Of-Publication` > 2000) %>%
+  group_by(`Book-Title`) %>%
+  summarise(Durchschnittsbewertung = mean(`Book-Rating`), n = n()) %>%
+  filter(n > 1) %>%
+  arrange(desc(n))
+```
