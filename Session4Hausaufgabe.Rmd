@@ -1,0 +1,161 @@
+---
+title: "Session 4 Hausaufgabe"
+output: html_notebook
+---
+
+### Libraries importieren
+```{r}
+library(tidyverse)
+library(e1071)
+library(caret)
+library(pROC)
+library(GGally)
+library(rpart)
+library(rpart.plot)
+```
+
+### Datensatz importieren
+```{r}
+titanic <- read_delim("~/1Szudium/Mui/3. Semester/Data Science/titanic.csv", 
+    ";", escape_double = FALSE, trim_ws = TRUE)
+```
+
+
+# Aufgabe 1 | Neue Features implementieren
+
+## Ich neheme die Anzahl an Geschwistern und Verwandten und das Alter an Board als Feature 
+## Da Ticketnummer oder Kosten nicht über Leben und Tod entscheiden
+```{r}
+(titanic.asdf <- titanic %>%
+  select(survived,sibsp,parch,sex))
+```
+
+### Geschlecht auf 0/1 setzen
+```{r}
+titanic.asdf <- titanic.asdf %>%
+  mutate(sex = ifelse(sex == "female", 1, 0))
+```
+
+### NAs entfernen
+```{r}
+titanic.asdf <- na.omit(titanic.asdf)
+```
+
+## Visuelle aufbereitung von der Anzahl an Passagieren mit Verwandten oder Geschwistern an Bord
+```{r}
+ggplot(titanic.asdf, aes(x = sibsp)) +
+ geom_density(fill="red")
+```
+
+```{r}
+ggplot(titanic.asdf, aes(x = parch)) +
+ geom_density(fill="red")
+```
+
+## SVMs
+
+```{r}
+set.seed(106)
+inTrain <- createDataPartition(
+  y = titanic.asdf$survived,
+  p = .8,
+  list = FALSE)
+training <- titanic.asdf[ inTrain,]
+testing  <- titanic.asdf[-inTrain,]
+```
+
+```{r}
+model <- svm(survived ~ ., data = training)
+summary(model)
+pred <- predict(model, testing[,-1], probability = FALSE)
+```
+
+```{r}
+(test.results <- cbind(pred, testing))
+```
+
+```{r}
+test.results2 <- test.results %>%
+  mutate(pred = ifelse(pred>=0.5,1,0))
+table(test.results2$pred, testing$survived)
+```
+
+# Aufgabe 3 | Erklärung für Performanceunterschiede
+
+## Da wir keingroßes Dataset haben gehen die Berechnungen schnell
+## Da es teilweise viele Überlappungen gibt fällt es dem Algorhythmus schwerer eine sinnvolle prediction zu treffen
+```{r}
+pROC_obj <- roc(test.results$survived, test.results$pred,
+            smoothed = TRUE,
+            ci=TRUE, ci.alpha=0.9, stratified=FALSE,
+            plot=TRUE, auc.polygon=TRUE, max.auc.polygon=TRUE, grid=TRUE,
+            print.auc=TRUE, show.thres=TRUE)
+```
+
+# Naive Bayes
+
+```{r}
+my_training <- training %>%
+  mutate(survived = as.factor(survived))%>%
+  mutate(sex = as.factor(sex))%>%
+  mutate(sibsp = as.factor(sibsp)) %>%
+  mutate(parch = as.factor(parch))
+model <- naiveBayes(survived ~ ., data = my_training)
+model
+```
+
+```{r}
+my_testing <- testing %>%
+  mutate(sex = as.factor(sex)) %>%
+  mutate(sibsp = as.factor(sibsp))%>%
+  mutate(parch = as.factor(parch))
+pred <- predict(model, my_testing)
+table(pred, my_testing$survived)
+```
+
+```{r}
+(test.results <- cbind(pred, my_testing))
+```
+
+# Aufgabe 3 | Erklärung für Performanceunterschiede
+
+## Performed schlechter als die beiden anderen, da die Schwachstelle (unabhängige Variablen) durch die Auswahl der Features getroffen wird, die Features haben, wie schon oben ##gesehen keine all zu großen Einfluss auf Leben/Tod 
+```{r}
+test.results <- test.results %>%
+  mutate(pred = as.numeric(pred))
+pROC_obj <- roc(as.numeric(as.character(test.results$survived)), test.results$pred,
+            smoothed = TRUE,
+            ci=TRUE, ci.alpha=0.9, stratified=FALSE,
+            plot=TRUE, auc.polygon=TRUE, max.auc.polygon=TRUE, grid=TRUE,
+            print.auc=TRUE, show.thres=TRUE)
+```
+
+# Decision Tree
+
+```{r}
+tree<- rpart(survived~., data = training, method = 'class')
+rpart.plot(tree)
+```
+```{r}
+dt_results <- predict(tree, testing[,-1], type = 'prob')
+head(model.results.dt <- cbind(testing,dt_results),500)
+```
+```{r}
+test.results2 <- test.results %>%
+  mutate(pred = ifelse(pred>=0.5,1,0))
+table(test.results2$pred, testing$survived)
+```
+
+# Aufgabe 3 | Erklärung für Performanceunterschiede
+
+## Dadurch das der Decision Tree die relevantesten Features für die Berechnung nimmt, ist er der präzisteste, da die beiden anderen die unnützen Features mit einbeziehen
+##
+```{r}
+pROC_obj <- roc(model.results.dt$survived,model.results.dt$`1`,
+            smoothed = TRUE,
+            # arguments for ci
+            ci=TRUE, ci.alpha=0.9, stratified=FALSE,
+            # arguments for plot
+            plot=TRUE, auc.polygon=TRUE, max.auc.polygon=TRUE, grid=TRUE,
+            print.auc=TRUE, show.thres=TRUE)
+```
