@@ -1,0 +1,82 @@
+---
+title: "Data Science 4. Session"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(readr)
+```
+
+```{r}
+titanic <- read_delim("~/1Szudium/Mui/3. Semester/Data Science/titanic.csv", 
+    ";", escape_double = FALSE, trim_ws = TRUE)
+```
+
+# Tote lebendige gucken
+```{r}
+titanic %>%
+  group_by(survived) %>%
+  summarize(n = n())
+```
+
+# Wieviele pro Boot
+```{r}
+titanic %>%
+  group_by(boat) %>%
+  summarize(n = n())
+```
+
+```{r}
+totlebend <- titanic %>%
+  select(survived, sex, age, pclass)
+```
+
+# Wie viele Frauen/Männer überlebt haben
+```{r}
+totlebend %>%
+  filter(survived > 0) %>%
+  group_by(sex) %>%
+  summarise(n = n())
+```
+
+# Wie viele Kinder haben es überlebt, wie viele nicht?
+```{r}
+totlebend %>%
+  filter(age < 18) %>%
+  group_by(survived) %>%
+  summarise(n = n())
+```
+
+```{r}
+totlebend %>%
+  group_by(age) %>%
+  summarise(n = n())
+```
+
+# Wieviele pro Boot
+```{r}
+totlebend %>%
+  group_by(embarked) %>%
+  summarize(n = n())
+```
+
+```{r}
+totlebend %>%
+  filter(survived > 0) %>%
+  group_by(embarked) %>%
+  summarize(n = n())
+```
+
+# Male Femal in Zahlen umwandeln
+```{r}
+totlebendsauber <- totlebend %>%
+  mutate(age = as.numeric(str_replace(age,",","."))) %>%
+  filter(!is.na(age))
+```
+
+```{r}
+totlebendsauber <- totlebendsauber %>%
+  mutate(sex = ifelse(sex == "female",1,0))
+```
+
