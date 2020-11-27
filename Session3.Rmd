@@ -44,6 +44,10 @@ users <- users %>%
 all <- ratings %>%
   left_join(users) %>%
   select(-Location)
+   filter(!str_detect(ISBN, '[A-Z]')) %>%
+  filter(!str_detect(`User-ID`, '[A-Z]')) %>%
+  filter(!str_detect(`Book-Title`, '�')) %>%
+  filter(!str_detect(`Book-Author`, '�')) %>%
 write_csv(all, "all.csv")
 ```
 
@@ -92,7 +96,12 @@ all <- all %>%
 ## Filter die Bücher raus, die als nicht sonderlich gut bewertet wurden
 ```{r}
 allgood <- all %>%
-  filter(`Book-Rating` > 4)
+  filter(`Book-Rating` > 0) %>%
+  group_by(ISBN) %>%
+  summarise(Durchschnittsbewertung = mean(`Book-Rating`), AnzahlBewertungen = n()) %>%
+  filter(AnzahlBewertungen > 10) %>%
+  filter(Durchschnittsbewertung > 5) %>%
+  left_join(all)
 ```
 
 ```{r message=FALSE}
