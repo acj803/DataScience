@@ -1,0 +1,159 @@
+---
+title: "Session 5 Hausaufgabe"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(readr)
+library(arules)
+library(arulesViz)
+library(cluster)
+library(caret)
+```
+
+## Laden von den Büchern
+## Bereinigen von den Büchern
+## Entfernen der ursprungsdateien
+
+  # EXTREME Bereinigung, da ich sonst nichts berechnet bekomme, aufgund der sonst zu großen Datenmenge!
+```{r}
+BX_Book_Ratings <- read_delim("~/1Szudium/Mui/3. Semester/Data Science/BX-Book-Ratings.csv", 
+    ";", escape_double = FALSE, trim_ws = TRUE)
+BX_Books <- read_delim("~/1Szudium/Mui/3. Semester/Data Science/BX-Books.csv", ";", 
+    escape_double = FALSE, trim_ws = TRUE)
+BX_Users <- read_delim("~/1Szudium/Mui/3. Semester/Data Science/BX-Users.csv", ";", 
+    escape_double = FALSE, trim_ws = TRUE)
+books <- BX_Books %>%
+  select(ISBN, `Book-Title`, `Book-Author`, `Year-Of-Publication`, Publisher)
+rm(BX_Books)
+users <- BX_Users %>%
+  mutate(Age= as.numeric(Age))
+rm(BX_Users)
+ratings <- BX_Book_Ratings %>%
+  left_join(books)
+rm(BX_Book_Ratings)
+ratings <- ratings %>%
+  filter(!is.na(`Book-Title`))
+users <- users %>%
+  filter(!is.na(Age)) %>%
+  mutate(country = str_remove(Location,".*,")) %>%
+  filter(country != "")
+all <- ratings %>%
+  left_join(users) %>%
+  filter(`Book-Rating` > 0) %>%
+  select(-Location) %>%
+  filter(!str_detect(ISBN, '[A-Z]')) %>%
+  filter(!str_detect(`User-ID`, '[A-Z]')) %>%
+  filter(!str_detect(`Book-Title`, '�')) %>%
+  filter(!str_detect(`Book-Author`, '�')) %>%
+  filter(!is.na(Age)) %>%
+  filter(!is.na(country))
+  write_csv(all, "all.csv")
+```
+
+```{r}
+all <- read_csv("all.csv")
+```
+
+```{r}
+users_books <- all %>%
+  group_by(`Book-Title`) %>%
+  mutate(no_of_books = n()) %>%
+  filter(no_of_books > 19) %>%
+  filter(`Book-Rating` > 9) %>%
+  select(`User-ID`, `Book-Title`)
+```
+
+```{r}
+users_books <- users_books %>%
+  unique()
+books_wide <- users_books %>%
+  mutate(i = 1) %>%
+  spread(`Book-Title`,i,fill=0)
+```
+
+
+
+## Hausaufgabe
+
+###ScreeTest
+```{r}
+wss <- (nrow(books_wide)-1)*sum(apply(books_wide,2,var))
+  for (i in 2:10) wss[i] <- sum(kmeans(books_wide,
+                                       centers=i)$withinss)
+plot(1:10, wss, type="b", xlab="Number of Clusters",
+     ylab="Within groups sum of squares")
+```
+
+```{r}
+books_wide.dist <- dist(books_wide, method="euclidean")
+books_wide.hc <- hclust(books_wide.dist, method = "ward.D2")
+plot(books_wide.hc)
+groups <- cutree(books_wide.hc, k=2) 
+rect.hclust(books_wide.hc, k=2, border="red")
+```
+
+```{r}
+k.means.fit <- kmeans(books_wide, 3)
+```
+```{r}
+k.means.fit$size
+```
+
+### Clusterplot
+```{r}
+clusplot(books_wide, k.means.fit$cluster, color=TRUE, shade=TRUE, labels=4, lines=0, main="K-means cluster plot")
+```
+
+    #Aufgabe
+    ## Versuchen Sie die Leser aus dem Buch-Datenset zu clustern
+
+##User in ihren Clustern
+```{r}
+resultUsers <- as.data.frame(cbind(books_wide$`User-ID`, k.means.fit$cluster)) %>%
+  rename(`User-ID` = V1, `Cluster` = V2) %>%
+  left_join(users)
+```
+
+    #Aufgabe
+    ## Welche Bücher gehören in welches Cluster?
+
+##Bücher in ihren Clustern anzeigen
+
+### Da kein String sondern numerische Werte in der Linken Spalte erwartet werden
+```{r}
+users_books2 <- all %>%
+  group_by(`ISBN`) %>%
+  mutate(no_of_books = n()) %>%
+  filter(no_of_books > 19) %>%
+  filter(`Book-Rating` > 9) %>%
+  select(`User-ID`, ISBN)
+```
+
+## Versuche daher ab hier die Tabelle so zu drehen, dass nicht die Bücher oben stehen sondern die User
+```{r}
+users_books2 <- users_books2 %>%
+  unique()
+books_wide2 <- users_books2 %>%
+  mutate(i = 1) %>%
+  spread(`User-ID`,i,fill=0)
+```
+```{r}
+k.means.fit2 <- kmeans(books_wide2, 3)
+```
+```{r}
+k.means.fit2$size
+```
+
+# Bücher in ihren Clustern, plus Titel und weitere Angaben
+```{r}
+resultBooks <- as.data.frame(cbind(books_wide2$ISBN, k.means.fit2$cluster)) %>%
+  rename(ISBN = V1, `Cluster` = V2) %>%
+  left_join(books)
+```
+
+## Die Fehlermeldung bei clusplot verstehe ich nicht und finde bei Stack Overflow keine für mich verständlichen Antworten leider.
+```{r}
+clusplot(books_wide2, k.means2$cluster, color=TRUE, shade=TRUE, labels=4, lines=0, main="K-means cluster plot")
+```
